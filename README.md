@@ -1,6 +1,6 @@
 # Notion Job Collector
 
-`Career Hub > Job Opportunities`에 채용공고를 안전하게 upsert하는 Python 프로젝트입니다.
+채용 공고를 자동으로 모아 `Career Hub > Job Opportunities`에 안전하게 upsert하는 Python 프로젝트입니다.
 
 핵심 안전 규칙:
 

@@ -115,6 +115,45 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(jobs[0].external_job_id, "201")
         self.assertEqual(parse_calendar_payload(payload, today=date(2026, 9, 11), keywords=["Azure"]), [])
 
+    def test_jasoseol_uses_duty_group_taxonomy_for_generic_titles(self) -> None:
+        duty_groups = [
+            {"id": 91, "name": "경영·사무", "group_id": None, "category": "large"},
+            {"id": 94, "name": "IT·인터넷", "group_id": None, "category": "large"},
+            {"id": 103, "name": "기획·전략·경영", "group_id": 91, "category": "medium"},
+            {"id": 162, "name": "웹개발", "group_id": 94, "category": "medium"},
+            {"id": 176, "name": "서버·백엔드개발", "group_id": 162, "category": "small"},
+        ]
+        payload = {
+            "employment": [
+                {
+                    "id": 301,
+                    "name": "Example Group",
+                    "title": "2026년 신입사원 공개채용",
+                    "start_time": "2026-09-01T00:00:00+09:00",
+                    "end_time": "2026-09-30T23:59:00+09:00",
+                    "employments": [
+                        {
+                            "division": 1,
+                            "duty_groups": [{"group_id": 162}, {"group_id": 176}],
+                        }
+                    ],
+                },
+                {
+                    "id": 302,
+                    "name": "Example Office",
+                    "title": "2026년 신입사원 공개채용",
+                    "start_time": "2026-09-01T00:00:00+09:00",
+                    "end_time": "2026-09-30T23:59:00+09:00",
+                    "employments": [{"division": 1, "duty_groups": [{"group_id": 103}]}],
+                },
+            ]
+        }
+        jobs = parse_calendar_payload(payload, today=date(2026, 9, 11), duty_groups=duty_groups)
+        self.assertEqual([job.external_job_id for job in jobs], ["301"])
+        self.assertEqual(jobs[0].position, "서버·백엔드개발")
+        self.assertIn("IT", jobs[0].categories)
+        self.assertIn("Backend", jobs[0].categories)
+
 
 if __name__ == "__main__":
     unittest.main()

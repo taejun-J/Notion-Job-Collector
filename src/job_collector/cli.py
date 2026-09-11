@@ -28,7 +28,7 @@ def parser() -> argparse.ArgumentParser:
         default=os.getenv("JASOSEOL_KEYWORDS", ""),
         help="Optional comma-separated keywords in addition to the built-in IT filter",
     )
-    result.add_argument("--max-jobs", type=int, default=int(os.getenv("MAX_JOBS", "50")))
+    result.add_argument("--max-jobs", type=int, default=int(os.getenv("MAX_JOBS", "200")))
     result.add_argument("--dry-run", action="store_true", help="Validate and print payloads without Notion writes")
     return result
 

@@ -12,7 +12,9 @@ from .models import Job
 
 
 JASOSEOL_CALENDAR_URL = "https://jasoseol.com/employment/calendar_list.json"
+JASOSEOL_DUTY_GROUPS_URL = "https://jasoseol.com/api/v1/duty-groups"
 JASOSEOL_RECRUIT_URL = "https://jasoseol.com/recruit/{job_id}"
+JASOSEOL_IT_DUTY_ROOT = "IT·인터넷"
 
 # 공개 달력에 표시되는 공고명/직무명만 대상으로 분류한다.
 # 상세 공고 이미지 OCR이나 로그인 세션은 사용하지 않는다.
@@ -84,13 +86,14 @@ def _date_part(value: Any) -> str | None:
         return None
 
 
-def _search_text(raw: dict[str, Any]) -> str:
+def _search_text(raw: dict[str, Any], duty_names: list[str] | None = None) -> str:
     fields = [str(raw.get("title", ""))]
     fields.extend(
         str(item.get("field", ""))
         for item in raw.get("employments") or []
         if isinstance(item, dict)
     )
+    fields.extend(duty_names or [])
     return " ".join(fields).casefold()
 
 
@@ -116,6 +119,55 @@ def _division_values(employments: list[dict[str, Any]]) -> set[int]:
         values = raw if isinstance(raw, list) else [raw]
         divisions.update(int(value) for value in values if str(value).isdigit())
     return divisions
+
+
+def _duty_group_ids(employments: list[dict[str, Any]]) -> list[int]:
+    values: list[int] = []
+    for employment in employments:
+        for duty in employment.get("duty_groups") or []:
+            if isinstance(duty, dict) and str(duty.get("group_id", "")).isdigit():
+                value = int(duty["group_id"])
+                if value not in values:
+                    values.append(value)
+    return values
+
+
+def _duty_group_context(
+    employments: list[dict[str, Any]], duty_groups: list[dict[str, Any]] | None
+) -> tuple[list[str], bool]:
+    if not duty_groups:
+        return [], False
+    by_id = {
+        int(item["id"]): item
+        for item in duty_groups
+        if isinstance(item, dict) and str(item.get("id", "")).isdigit()
+    }
+    selected_ids = _duty_group_ids(employments)
+
+    def ancestor_ids(duty_id: int) -> list[int]:
+        result: list[int] = []
+        current = by_id.get(duty_id)
+        while current and str(current.get("group_id", "")).isdigit():
+            parent_id = int(current["group_id"])
+            result.append(parent_id)
+            current = by_id.get(parent_id)
+        return result
+
+    it_selected_ids = [
+        duty_id
+        for duty_id in selected_ids
+        if any(
+            by_id.get(value, {}).get("name") == JASOSEOL_IT_DUTY_ROOT
+            for value in [duty_id, *ancestor_ids(duty_id)]
+        )
+    ]
+    parent_ids = {ancestor for duty_id in it_selected_ids for ancestor in ancestor_ids(duty_id)}
+    names = [
+        str(by_id[duty_id].get("name", "")).strip()
+        for duty_id in it_selected_ids
+        if duty_id in by_id and duty_id not in parent_ids
+    ]
+    return list(dict.fromkeys(name for name in names if name)), bool(it_selected_ids)
 
 
 def _experience_level(employments: list[dict[str, Any]]) -> str:
@@ -145,7 +197,8 @@ def parse_calendar_payload(
     *,
     today: date | None = None,
     keywords: list[str] | None = None,
-    max_jobs: int = 50,
+    max_jobs: int = 200,
+    duty_groups: list[dict[str, Any]] | None = None,
 ) -> list[Job]:
     """Convert active, relevant public calendar entries into Notion jobs."""
     today = today or _seoul_today()
@@ -164,9 +217,13 @@ def parse_calendar_payload(
         if not job_id or not start or not deadline or not (start <= today.isoformat() <= deadline):
             continue
 
-        text = _search_text(raw)
+        employments = [item for item in raw.get("employments") or [] if isinstance(item, dict)]
+        duty_names, is_it_duty = _duty_group_context(employments, duty_groups)
+        text = _search_text(raw, duty_names)
         categories = _matching_labels(text, CATEGORY_KEYWORDS)
-        is_any_it_job = "IT" in categories
+        if is_it_duty and "IT" not in categories:
+            categories.insert(0, "IT")
+        is_any_it_job = "IT" in categories or is_it_duty
         matches_profile = bool(set(categories) & (TARGET_CATEGORIES - {"IT"}))
         matches_profile = (
             matches_profile
@@ -176,9 +233,9 @@ def parse_calendar_payload(
         if not (is_any_it_job or matches_profile) or job_id in seen:
             continue
 
-        employments = [item for item in raw.get("employments") or [] if isinstance(item, dict)]
         positions = list(dict.fromkeys(str(item.get("field", "")).strip() for item in employments))
         positions = [value for value in positions if value]
+        positions.extend(value for value in duty_names if value not in positions)
         title = str(raw.get("title", "")).strip()
         company = str(raw.get("name", "")).strip()
         if not title or not company:
@@ -215,13 +272,13 @@ def load_jasoseol_jobs(
     *,
     today: date | None = None,
     keywords: list[str] | None = None,
-    max_jobs: int = 50,
+    max_jobs: int = 200,
 ) -> list[Job]:
-    """Load one month of public calendar data without login or per-job requests."""
+    """Load public calendar and duty taxonomy data without login or per-job requests."""
     today = today or _seoul_today()
     start_time, end_time = _month_bounds(today)
     body = json.dumps({"start_time": start_time, "end_time": end_time}).encode("utf-8")
-    request = Request(
+    calendar_request = Request(
         JASOSEOL_CALENDAR_URL,
         data=body,
         method="POST",
@@ -236,11 +293,32 @@ def load_jasoseol_jobs(
             ),
         },
     )
+    duty_groups_request = Request(
+        JASOSEOL_DUTY_GROUPS_URL,
+        headers={
+            "Accept": "application/json",
+            "Referer": "https://jasoseol.com/recruit",
+            "User-Agent": (
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                "Chrome/131.0 Safari/537.36"
+            ),
+        },
+    )
     try:
-        with urlopen(request, timeout=30) as response:  # nosec B310: fixed HTTPS origin
+        with urlopen(duty_groups_request, timeout=30) as response:  # nosec B310: fixed HTTPS origin
+            duty_groups = json.load(response)
+        with urlopen(calendar_request, timeout=30) as response:  # nosec B310: fixed HTTPS origin
             payload = json.load(response)
     except (HTTPError, URLError) as error:
         raise RuntimeError(
             "자소설닷컴 공개 달력 요청에 실패했습니다. 사이트 정책/구조가 바뀌었는지 확인하세요."
         ) from error
-    return parse_calendar_payload(payload, today=today, keywords=keywords, max_jobs=max_jobs)
+    if not isinstance(duty_groups, list):
+        raise RuntimeError("자소설닷컴 직무 분류 응답 형식이 예상과 다릅니다.")
+    return parse_calendar_payload(
+        payload,
+        today=today,
+        keywords=keywords,
+        max_jobs=max_jobs,
+        duty_groups=duty_groups,
+    )

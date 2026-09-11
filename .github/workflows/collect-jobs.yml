@@ -3,9 +3,10 @@ name: Collect jobs to Notion
 on:
   workflow_dispatch:
     inputs:
-      feed_url:
-        description: Public JSON feed URL
-        required: true
+      max_jobs:
+        description: Maximum number of matching jobs
+        required: false
+        default: "50"
         type: string
   schedule:
     - cron: "17 22 * * *" # 07:17 Asia/Seoul
@@ -37,6 +38,6 @@ jobs:
           NOTION_JOB_DATA_SOURCE_ID: fe880847-c020-4c66-b8d4-840cfa4bbb6a
           NOTION_COMPANIES_DATA_SOURCE_ID: 95eedd44-631c-4f96-a18e-08f470709d96
           NOTION_API_VERSION: "2026-03-11"
-          JOB_FEED_URL: ${{ inputs.feed_url || vars.JOB_FEED_URL }}
-        run: collect-jobs --input "$JOB_FEED_URL"
-
+          JASOSEOL_KEYWORDS: ${{ vars.JASOSEOL_KEYWORDS }}
+          MAX_JOBS: ${{ inputs.max_jobs || '50' }}
+        run: collect-jobs --source jasoseol --max-jobs "$MAX_JOBS"

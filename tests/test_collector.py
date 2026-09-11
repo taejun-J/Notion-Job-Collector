@@ -82,13 +82,14 @@ class CollectorTests(unittest.TestCase):
                     "name": "Example IT",
                     "title": "IT Sales 담당자",
                     "start_time": "2026-09-01T00:00:00+09:00",
-                    "end_time": "2026-09-30T23:59:00+09:00",
+                    "end_time": "2026-09-20T23:59:00+09:00",
                     "employments": [],
                 },
             ]
         }
         jobs = parse_calendar_payload(payload, today=date(2026, 9, 11))
         self.assertEqual({job.external_job_id for job in jobs}, {"101", "105"})
+        self.assertEqual([job.external_job_id for job in jobs], ["105", "101"])
         cloud_job = next(job for job in jobs if job.external_job_id == "101")
         self.assertEqual(cloud_job.source, "자소설닷컴")
         self.assertEqual(cloud_job.experience_level, "신입")

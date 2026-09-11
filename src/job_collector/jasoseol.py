@@ -207,7 +207,7 @@ def parse_calendar_payload(
         )
         seen.add(job_id)
 
-    jobs.sort(key=lambda job: (-float(job.fit_score or 0), job.deadline or "9999-12-31", job.company))
+    jobs.sort(key=lambda job: (job.deadline or "9999-12-31", -float(job.fit_score or 0), job.company))
     return jobs[:max_jobs]
 
 

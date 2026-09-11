@@ -17,9 +17,9 @@ JASOSEOL_RECRUIT_URL = "https://jasoseol.com/recruit/{job_id}"
 # 공개 달력에 표시되는 공고명/직무명만 대상으로 분류한다.
 # 상세 공고 이미지 OCR이나 로그인 세션은 사용하지 않는다.
 CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "IT": ("it",),
     "IT Infra": (
-        "it infra", "infrastructure", "인프라", "it planning",
-        "it 기획", "it기획", "it 운영", "it운영",
+        "it infra", "infrastructure", "인프라", "it 운영", "it운영",
     ),
     "Cloud": ("cloud", "클라우드", "aws", "azure", "gcp"),
     "DevOps": ("devops", "dev ops", "데브옵스", "ci/cd", "배포 자동화"),
@@ -33,9 +33,14 @@ CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
     "System Engineer": (
         "system engineer", "system administrator", "시스템 엔지니어", "시스템 운영",
     ),
+    "IT Planning": ("it planning", "it 기획", "it기획"),
     "Network": ("network", "네트워크"),
     "Security": ("security", "cyber", "보안", "정보보호"),
 }
+
+TARGET_CATEGORIES = frozenset(
+    {"IT", "IT Infra", "Cloud", "DevOps", "Backend", "IT/OT", "Platform", "System Engineer", "IT Planning"}
+)
 
 TECHNOLOGY_KEYWORDS: dict[str, tuple[str, ...]] = {
     "AWS": ("aws",),
@@ -50,6 +55,7 @@ TECHNOLOGY_KEYWORDS: dict[str, tuple[str, ...]] = {
     "Database": ("database", "데이터베이스"),
     "DevOps": ("devops", "dev ops", "데브옵스"),
     "SRE": ("sre", "site reliability"),
+    "Java": ("java",),
     "CI/CD": ("ci/cd",),
 }
 
@@ -160,12 +166,14 @@ def parse_calendar_payload(
 
         text = _search_text(raw)
         categories = _matching_labels(text, CATEGORY_KEYWORDS)
-        if (
-            not categories
-            or any(_contains(text, keyword) for keyword in EXCLUDE_KEYWORDS)
-            or not _matches_custom_keywords(text, keywords)
-            or job_id in seen
-        ):
+        is_any_it_job = "IT" in categories
+        matches_profile = bool(set(categories) & (TARGET_CATEGORIES - {"IT"}))
+        matches_profile = (
+            matches_profile
+            and not any(_contains(text, keyword) for keyword in EXCLUDE_KEYWORDS)
+            and _matches_custom_keywords(text, keywords)
+        )
+        if not (is_any_it_job or matches_profile) or job_id in seen:
             continue
 
         employments = [item for item in raw.get("employments") or [] if isinstance(item, dict)]

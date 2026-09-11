@@ -77,14 +77,25 @@ class CollectorTests(unittest.TestCase):
                     "end_time": "2026-09-30T23:59:00+09:00",
                     "employments": [],
                 },
+                {
+                    "id": 105,
+                    "name": "Example IT",
+                    "title": "IT Sales 담당자",
+                    "start_time": "2026-09-01T00:00:00+09:00",
+                    "end_time": "2026-09-30T23:59:00+09:00",
+                    "employments": [],
+                },
             ]
         }
         jobs = parse_calendar_payload(payload, today=date(2026, 9, 11))
-        self.assertEqual([job.external_job_id for job in jobs], ["101"])
-        self.assertEqual(jobs[0].source, "자소설닷컴")
-        self.assertEqual(jobs[0].experience_level, "신입")
-        self.assertEqual(jobs[0].categories, ["Cloud", "DevOps", "Platform"])
-        self.assertEqual(jobs[0].technologies, ["Cloud", "DevOps"])
+        self.assertEqual({job.external_job_id for job in jobs}, {"101", "105"})
+        cloud_job = next(job for job in jobs if job.external_job_id == "101")
+        self.assertEqual(cloud_job.source, "자소설닷컴")
+        self.assertEqual(cloud_job.experience_level, "신입")
+        self.assertEqual(cloud_job.categories, ["Cloud", "DevOps", "Platform"])
+        self.assertEqual(cloud_job.technologies, ["Cloud", "DevOps"])
+        it_job = next(job for job in jobs if job.external_job_id == "105")
+        self.assertEqual(it_job.categories, ["IT"])
 
     def test_jasoseol_custom_keyword_is_additional_filter(self) -> None:
         payload = {

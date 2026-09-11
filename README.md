@@ -50,7 +50,8 @@ JSON 샘플을 실제로 실행하면 `[SAMPLE]` 레코드 두 개(기업·공�
 - 로그인, 쿠키, 개인 계정 세션을 사용하지 않습니다.
 - 공개 채용 달력 API를 실행당 한 번만 요청하고 상세 공고를 반복 조회하지 않습니다.
 - 현재 모집 중인 공고만 남깁니다.
-- 공고명과 공개 직무명에 `IT Infra`, `Cloud`, `DevOps`, `SRE`, `Backend`, `IT/OT`, `Platform`, `System Engineer`, `Network`, `Security` 관련 키워드가 있는 공고만 수집합니다.
+- 공고명이나 공개 직무명에 독립된 단어 `IT`가 있으면 직무 종류와 관계없이 수집합니다.
+- 그 외에는 `IT Infra`, `Cloud`, `DevOps`, `Backend`, `IT/OT`, `Platform`, `System Engineer`, `IT Planning` 관련 공고를 수집합니다.
 - 적합도는 키워드 일치 개수에 따른 60~95점의 1차 휴리스틱입니다. 실제 검토 후 Notion의 관심도를 직접 기록하세요.
 - `JASOSEOL_KEYWORDS` Repository variable에 쉼표 구분 키워드를 넣으면 기본 IT 필터를 통과한 공고를 추가로 좁힐 수 있습니다.
 - 공개 API와 페이지 구조는 자소설닷컴의 공식 API 계약이 아니므로 변경 시 어댑터 수정이 필요할 수 있습니다.

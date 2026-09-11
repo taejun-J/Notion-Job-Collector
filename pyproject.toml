@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "notion-job-collector"
+version = "0.1.0"
+description = "Safe job posting upserts for Taejun's Notion Career Hub"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+collect-jobs = "job_collector.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

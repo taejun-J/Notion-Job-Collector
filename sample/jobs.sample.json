@@ -1,0 +1,23 @@
+{
+  "jobs": [
+    {
+      "title": "[SAMPLE] Cloud Infrastructure Engineer",
+      "company": "[SAMPLE] Example Company",
+      "position": "Cloud Infrastructure Engineer",
+      "source": "기타",
+      "url": "https://example.com/jobs/cloud-infra?utm_source=test",
+      "external_job_id": "sample-001",
+      "categories": ["IT Infra", "Cloud", "DevOps"],
+      "location": "서울",
+      "employment_type": "정규직",
+      "experience_level": "신입 가능",
+      "posted_date": "2026-09-01",
+      "deadline": "2026-12-31",
+      "technologies": ["AWS", "Linux", "Docker", "Kubernetes", "Terraform"],
+      "responsibilities": "샘플 입력 검증용 데이터입니다.",
+      "requirements": "실제 채용공고가 아닙니다.",
+      "fit_score": 80
+    }
+  ]
+}
+

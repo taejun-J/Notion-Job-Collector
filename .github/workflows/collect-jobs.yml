@@ -6,7 +6,7 @@ on:
       max_jobs:
         description: Maximum number of matching jobs
         required: false
-        default: "200"
+        default: "300"
         type: string
   schedule:
     - cron: "17 22 * * *" # 07:17 Asia/Seoul
@@ -39,5 +39,5 @@ jobs:
           NOTION_COMPANIES_DATA_SOURCE_ID: 95eedd44-631c-4f96-a18e-08f470709d96
           NOTION_API_VERSION: "2026-03-11"
           JASOSEOL_KEYWORDS: ${{ vars.JASOSEOL_KEYWORDS }}
-          MAX_JOBS: ${{ inputs.max_jobs || '200' }}
+          MAX_JOBS: ${{ inputs.max_jobs || '300' }}
         run: collect-jobs --source jasoseol --max-jobs "$MAX_JOBS"

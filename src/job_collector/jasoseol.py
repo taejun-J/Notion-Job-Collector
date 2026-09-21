@@ -64,13 +64,20 @@ TECHNOLOGY_KEYWORDS: dict[str, tuple[str, ...]] = {
 EXCLUDE_KEYWORDS = ("sales", "세일즈", "영업", "marketing", "마케팅")
 
 
-def _month_bounds(today: date) -> tuple[str, str]:
+def _calendar_ranges(today: date) -> list[tuple[str, str]]:
     start = today.replace(day=1)
-    end = (start.replace(day=28) + timedelta(days=4)).replace(day=1)
-    return (
-        f"{start.isoformat()}T00:00:00+09:00",
-        f"{end.isoformat()}T00:00:00+09:00",
-    )
+    month_end = (start.replace(day=28) + timedelta(days=4)).replace(day=1)
+    ranges: list[tuple[str, str]] = []
+    while start < month_end:
+        end = min(start + timedelta(days=15), month_end)
+        ranges.append(
+            (
+                f"{start.isoformat()}T00:00:00+09:00",
+                f"{end.isoformat()}T00:00:00+09:00",
+            )
+        )
+        start = end
+    return ranges
 
 
 def _seoul_today() -> date:
@@ -276,23 +283,6 @@ def load_jasoseol_jobs(
 ) -> list[Job]:
     """Load public calendar and duty taxonomy data without login or per-job requests."""
     today = today or _seoul_today()
-    start_time, end_time = _month_bounds(today)
-    body = json.dumps({"start_time": start_time, "end_time": end_time}).encode("utf-8")
-    calendar_request = Request(
-        JASOSEOL_CALENDAR_URL,
-        data=body,
-        method="POST",
-        headers={
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-            "Origin": "https://jasoseol.com",
-            "Referer": "https://jasoseol.com/recruit",
-            "User-Agent": (
-                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-                "Chrome/131.0 Safari/537.36"
-            ),
-        },
-    )
     duty_groups_request = Request(
         JASOSEOL_DUTY_GROUPS_URL,
         headers={
@@ -307,8 +297,30 @@ def load_jasoseol_jobs(
     try:
         with urlopen(duty_groups_request, timeout=30) as response:  # nosec B310: fixed HTTPS origin
             duty_groups = json.load(response)
-        with urlopen(calendar_request, timeout=30) as response:  # nosec B310: fixed HTTPS origin
-            payload = json.load(response)
+        calendar_rows: list[dict[str, Any]] = []
+        for start_time, end_time in _calendar_ranges(today):
+            body = json.dumps({"start_time": start_time, "end_time": end_time}).encode("utf-8")
+            calendar_request = Request(
+                JASOSEOL_CALENDAR_URL,
+                data=body,
+                method="POST",
+                headers={
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                    "Origin": "https://jasoseol.com",
+                    "Referer": "https://jasoseol.com/recruit",
+                    "User-Agent": (
+                        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                        "Chrome/131.0 Safari/537.36"
+                    ),
+                },
+            )
+            with urlopen(calendar_request, timeout=30) as response:  # nosec B310: fixed HTTPS origin
+                payload = json.load(response)
+            rows = payload.get("employment", []) if isinstance(payload, dict) else None
+            if not isinstance(rows, list):
+                raise RuntimeError("자소설닷컴 채용 달력 응답 형식이 예상과 다릅니다.")
+            calendar_rows.extend(row for row in rows if isinstance(row, dict))
     except (HTTPError, URLError) as error:
         raise RuntimeError(
             "자소설닷컴 공개 달력 요청에 실패했습니다. 사이트 정책/구조가 바뀌었는지 확인하세요."
@@ -316,7 +328,7 @@ def load_jasoseol_jobs(
     if not isinstance(duty_groups, list):
         raise RuntimeError("자소설닷컴 직무 분류 응답 형식이 예상과 다릅니다.")
     return parse_calendar_payload(
-        payload,
+        {"employment": calendar_rows},
         today=today,
         keywords=keywords,
         max_jobs=max_jobs,

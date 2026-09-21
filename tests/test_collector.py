@@ -1,7 +1,7 @@
 import unittest
 from datetime import date
 
-from job_collector.jasoseol import parse_calendar_payload
+from job_collector.jasoseol import _calendar_ranges, parse_calendar_payload
 from job_collector.models import Job
 from job_collector.normalize import normalize_url
 from job_collector.notion import (
@@ -97,6 +97,15 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(cloud_job.technologies, ["Cloud", "DevOps"])
         it_job = next(job for job in jobs if job.external_job_id == "105")
         self.assertEqual(it_job.categories, ["IT"])
+
+    def test_jasoseol_calendar_is_requested_in_api_safe_ranges(self) -> None:
+        self.assertEqual(
+            _calendar_ranges(date(2026, 9, 21)),
+            [
+                ("2026-09-01T00:00:00+09:00", "2026-09-16T00:00:00+09:00"),
+                ("2026-09-16T00:00:00+09:00", "2026-10-01T00:00:00+09:00"),
+            ],
+        )
 
     def test_jasoseol_custom_keyword_is_additional_filter(self) -> None:
         payload = {

@@ -35,8 +35,8 @@ def parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = parser().parse_args()
-    if args.max_jobs < 1 or args.max_jobs > 200:
-        raise SystemExit("--max-jobs must be between 1 and 200")
+    if args.max_jobs < 1 or args.max_jobs > 300:
+        raise SystemExit("--max-jobs must be between 1 and 300")
     if args.source == "json":
         if not args.input:
             raise SystemExit("Provide --input or set JOB_FEED_URL for --source json")

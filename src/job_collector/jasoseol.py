@@ -197,7 +197,7 @@ def parse_calendar_payload(
     *,
     today: date | None = None,
     keywords: list[str] | None = None,
-    max_jobs: int = 200,
+    max_jobs: int = 300,
     duty_groups: list[dict[str, Any]] | None = None,
 ) -> list[Job]:
     """Convert active, relevant public calendar entries into Notion jobs."""
@@ -272,7 +272,7 @@ def load_jasoseol_jobs(
     *,
     today: date | None = None,
     keywords: list[str] | None = None,
-    max_jobs: int = 200,
+    max_jobs: int = 300,
 ) -> list[Job]:
     """Load public calendar and duty taxonomy data without login or per-job requests."""
     today = today or _seoul_today()
